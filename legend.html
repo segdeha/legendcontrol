@@ -1,0 +1,252 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Interactive legend + MarkerManager = Sweet Google Map!</title>
+		<style type="text/css">
+		
+		body {
+			margin: 0;
+			padding: 0;
+		}
+		
+		#map {
+			position: absolute;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+		}
+		
+		</style>
+	</head>
+	<body>
+		<!-- map viewport -->
+		<div id="map"></div>
+		
+		<!-- google maps api (required) -->
+		<script type="text/javascript" src="http://maps.google.com/maps?file=api&amp;v=2&amp;key=ABQIAAAAUPJYVrP6-0cvpnC2TOO3LhSosDVG8KKPE1-m51RBrvYughuyMxRCYYHKpi9og5ie046y-miMT9_iig"></script>
+		
+		<!-- markermanager (required) -->
+		<script type="text/javascript" src="http://gmaps-utility-library-dev.googlecode.com/svn/trunk/markermanager/src/markermanager.js"></script>
+		
+		<!-- mapiconmaker (NOT required by LegendControl, but used below for creating pins of different colors) -->
+		<script type="text/javascript" src="http://gmaps-utility-library-dev.googlecode.com/svn/trunk/mapiconmaker/src/mapiconmaker.js"></script>
+		
+		<!-- legendcontrol (required) -->
+		<script type="text/javascript" src="LegendControl.js"></script>
+		
+		<!-- set up the map -->
+		<script type="text/javascript">
+		
+		// these variables are not required by LegendControl
+		var
+			TYPE_THAI       = 'thai',
+			TYPE_INDIAN     = 'indian',
+			TYPE_VEGETARIAN = 'vegetarian',
+			
+			PIN_WIDTH  = 32,
+			PIN_HEIGHT = 32,
+			
+			PIN_THAI_BIG       = 'http://chart.apis.google.com/chart?cht=mm&chs=32x32&chco=ffffff,cc44ff,000000&ext=.png',
+			PIN_INDIAN_BIG     = 'http://chart.apis.google.com/chart?cht=mm&chs=32x32&chco=ffffff,ff8b16,000000&ext=.png',
+			PIN_VEGETARIAN_BIG = 'http://chart.apis.google.com/chart?cht=mm&chs=32x32&chco=ffffff,44aa00,000000&ext=.png',
+			
+			PIN_THAI_SMALL       = 'http://chart.apis.google.com/chart?cht=mm&chs=16x16&chco=ffffff,cc44ff,000000&ext=.png',
+			PIN_INDIAN_SMALL     = 'http://chart.apis.google.com/chart?cht=mm&chs=16x16&chco=ffffff,ff8b16,000000&ext=.png',
+			PIN_VEGETARIAN_SMALL = 'http://chart.apis.google.com/chart?cht=mm&chs=16x16&chco=ffffff,44aa00,000000&ext=.png',
+			
+			ZOOM_MIN = 0,
+			ZOOM_MED = 13,
+			ZOOM_MAX = 18,
+			
+			colors = {},
+			legendValues, // legend data
+			markerGroups = {}, // container for arrays of markers, one array per type (required by LegendControl)
+			markers
+		;
+		
+		// marker pin colors
+		colors[TYPE_THAI]       = '#cc44ff';
+		colors[TYPE_INDIAN]     = '#ff8b16';
+		colors[TYPE_VEGETARIAN] = '#44aa00';
+		
+		legendValues = [
+			// pins show up in the legend in the order specified below
+			// if you change the order, make sure they all have commas at the end, except the last one!
+			{ type    : TYPE_THAI,       description : 'Thai Restaurants',       pinSrc : PIN_THAI_SMALL       },
+			{ type    : TYPE_INDIAN,     description : 'Indian Restaurants',     pinSrc : PIN_INDIAN_SMALL     },
+			{ type    : TYPE_VEGETARIAN, description : 'Vegetarian Restaurants', pinSrc : PIN_VEGETARIAN_SMALL }
+		];
+		
+		function initMap() {
+			var map, mgr;
+			
+			// set up your basic map
+			map = new GMap2(document.getElementById('map'));
+			map.setCenter(new GLatLng(-36.848, 174.756), 13);
+			map.addControl(new GLargeMapControl());
+			map.addControl(new GScaleControl());
+			map.addControl(new GMapTypeControl());
+			
+			// create markermanager instance
+			mgr = new MarkerManager(map);
+			
+			// add markers to MarkerManager and set up markerGroups
+			initMarkers(mgr);
+			
+			// add legend
+			map.addControl(new LegendControl({
+				mgr          : mgr,
+				markerGroups : markerGroups,
+				legendValues : legendValues
+			}));
+		}
+		
+		function initMarkers(mgr) {
+			var item, i, len;
+			
+			// setup marker groups by type
+			for (item in legendValues) {
+				if ('function' !== typeof legendValues[item]) {
+					markerGroups[legendValues[item].type] = [];
+				}
+			}
+			
+			// create arrays of markers of the various types
+			for (i = 0, len = markers.length; i < len; i++) {
+				markerGroups[markers[i].type].push(createMarker(markers[i]));
+			}
+			
+			// add markers to the map
+			for (item in markerGroups) {
+				if ('function' !== typeof markerGroups[item]) {
+					for (i = 0, len = markerGroups[item].length; i < len; ++i) {
+						mgr.addMarker(markerGroups[item][i], markerGroups[item][i].zoomMin, markerGroups[item][i].zoomMax);
+					}
+				}
+			}
+			
+			// display the pins
+			mgr.refresh();
+		}
+		
+		/**
+		 * Create a marker
+		 * @param object obj Object literal specifying marker attributes
+		 * @return GMarker
+		 */
+		function createMarker(obj) {
+			var marker;
+			
+			marker = new GMarker(new GLatLng(obj.lat, obj.lng), {
+				title    : obj.name,
+				icon     : MapIconMaker.createMarkerIcon({
+					width        : PIN_WIDTH,
+					height       : PIN_HEIGHT,
+					primaryColor : colors[obj.type]
+				})
+			});
+			
+			marker.zoomMin = obj.zoomMin;
+			marker.zoomMax = obj.zoomMax;
+			
+			GEvent.addListener(marker, 'click', function() {
+				marker.openInfoWindowHtml('<div>' + obj.name + '</div>');
+			});
+			
+			return marker;
+		}
+		
+		window.onload = initMap;
+		
+		var markers = [
+			{	type    : TYPE_THAI,
+				zoomMin : ZOOM_MIN,
+				zoomMax : ZOOM_MAX,
+				lat     : -36.85888373572304,
+				lng     : 174.75355625152588,
+				name    : 'Joy Bong Thai Restaurant'
+			},
+			{	type    : TYPE_THAI,
+				zoomMin : ZOOM_MIN,
+				zoomMax : ZOOM_MED,
+				lat     : -36.8590554216527,
+				lng     : 174.75098133087158,
+				name    : 'Sawadee Thai Cuisine'
+			},
+			{	type    : TYPE_THAI,
+				zoomMin : ZOOM_MED,
+				zoomMax : ZOOM_MAX,
+				lat     : -36.848581874160516,
+				lng     : 174.76308345794678,
+				name    : 'Mai Thai Restaurant'
+			},
+			{	type    : TYPE_THAI,
+				zoomMin : ZOOM_MIN,
+				zoomMax : ZOOM_MAX,
+				lat     : -36.84792937617861,
+				lng     : 174.7672462463379,
+				name    : 'Khao Thai Cuisine'
+			},
+			{	type    : TYPE_INDIAN,
+				zoomMin : ZOOM_MIN,
+				zoomMax : ZOOM_MAX,
+				lat     : -36.85737288291131,
+				lng     : 174.74802017211914,
+				name    : 'Bolliwood'
+			},
+			{	type    : TYPE_INDIAN,
+				zoomMin : ZOOM_MIN,
+				zoomMax : ZOOM_MAX,
+				lat     : -36.849474757111615,
+				lng     : 174.7659158706665,
+				name    : 'Cheema Indian Restaurant'
+			},
+			{	type    : TYPE_INDIAN,
+				zoomMin : ZOOM_MIN,
+				zoomMax : ZOOM_MED,
+				lat     : -36.84775766525783,
+				lng     : 174.76196765899658,
+				name    : 'Raviz Indian Cuisine'
+			},
+			{	type    : TYPE_INDIAN,
+				zoomMin : ZOOM_MED,
+				zoomMax : ZOOM_MAX,
+				lat     : -36.84394558350679,
+				lng     : 174.76441383361816,
+				name    : 'Tagore Restaurant'
+			},
+			{	type    : TYPE_VEGETARIAN,
+				zoomMin : ZOOM_MIN,
+				zoomMax : ZOOM_MAX,
+				lat     : -36.84597184882086,
+				lng     : 174.76728916168213,
+				name    : 'Revive Vegetarian Cafe'
+			},
+			{	type    : TYPE_VEGETARIAN,
+				zoomMin : ZOOM_MIN,
+				zoomMax : ZOOM_MAX,
+				lat     : -36.84696779005515,
+				lng     : 174.7663450241089,
+				name    : 'Raw Power Cafe'
+			},
+			{	type    : TYPE_VEGETARIAN,
+				zoomMin : ZOOM_MIN,
+				zoomMax : ZOOM_MED,
+				lat     : -36.85764758564406,
+				lng     : 174.75982189178467,
+				name    : 'Rasoi Vegetarian Restaurant'
+			},
+			{	type    : TYPE_VEGETARIAN,
+				zoomMin : ZOOM_MED,
+				zoomMax : ZOOM_MAX,
+				lat     : -36.848247040365415,
+				lng     : 174.76308345794678,
+				name    : 'Golden Age Vegan Restaurant'
+			}
+		];
+		
+		</script>
+	</body>
+</html>
