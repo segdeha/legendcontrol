@@ -1,0 +1,1 @@
+Legend Control works with <a href='http://gmaps-utility-library-dev.googlecode.com/svn/trunk/markermanager/src/markermanager.js'>MarkerManager</a> to allow you to easily create sets of markers that can be shown/hidden by group as well as zoom level.
